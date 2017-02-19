@@ -60,32 +60,32 @@ instance GRead ((:=) a) where
             f (Refl, rest) = return (GReadResult (\x -> x Refl) , rest)
 
 -- |A class for type-contexts which contain enough information
--- to (at least in some cases) decide the equality of types 
+-- to (at least in some cases) decide the equality of types
 -- occurring within them.
-class GEq f where
+class GEq (f :: k -> *) where
     -- |Produce a witness of type-equality, if one exists.
-    -- 
+    --
     -- A handy idiom for using this would be to pattern-bind in the Maybe monad, eg.:
-    -- 
+    --
     -- > extract :: GEq tag => tag a -> DSum tag -> Maybe a
     -- > extract t1 (t2 :=> x) = do
     -- >     Refl <- geq t1 t2
     -- >     return x
-    -- 
+    --
     -- Or in a list comprehension:
-    -- 
+    --
     -- > extractMany :: GEq tag => tag a -> [DSum tag] -> [a]
     -- > extractMany t1 things = [ x | (t2 :=> x) <- things, Refl <- maybeToList (geq t1 t2)]
     --
     -- (Making use of the 'DSum' type from "Data.Dependent.Sum" in both examples)
     geq :: f a -> f b -> Maybe (a := b)
 
--- |If 'f' has a 'GEq' instance, this function makes a suitable default 
+-- |If 'f' has a 'GEq' instance, this function makes a suitable default
 -- implementation of '(==)'.
 defaultEq :: GEq f => f a -> f b -> Bool
 defaultEq x y = isJust (geq x y)
 
--- |If 'f' has a 'GEq' instance, this function makes a suitable default 
+-- |If 'f' has a 'GEq' instance, this function makes a suitable default
 -- implementation of '(/=)'.
 defaultNeq :: GEq f => f a -> f b -> Bool
 defaultNeq x y = isNothing (geq x y)
@@ -94,33 +94,33 @@ instance GEq ((:=) a) where
     geq (Refl :: a := b) (Refl :: a := c) = Just (Refl :: b := c)
 
 -- This instance seems nice, but it's simply not right:
--- 
+--
 -- > instance GEq StableName where
 -- >     geq sn1 sn2
 -- >         | sn1 == unsafeCoerce sn2
 -- >             = Just (unsafeCoerce Refl)
 -- >         | otherwise     = Nothing
--- 
+--
 -- Proof:
--- 
+--
 -- > x <- makeStableName id :: IO (StableName (Int -> Int))
 -- > y <- makeStableName id :: IO (StableName ((Int -> Int) -> Int -> Int))
--- > 
+-- >
 -- > let Just boom = geq x y
 -- > let coerce :: (a := b) -> a -> b; coerce Refl = id
--- > 
+-- >
 -- > coerce boom (const 0) id 0
 -- > let "Illegal Instruction" = "QED."
--- 
+--
 -- The core of the problem is that 'makeStableName' only knows the closure
 -- it is passed to, not any type information.  Together with the fact that
--- the same closure has the same StableName each time 'makeStableName' is 
--- called on it, there is serious potential for abuse when a closure can 
+-- the same closure has the same StableName each time 'makeStableName' is
+-- called on it, there is serious potential for abuse when a closure can
 -- be given many incompatible types.
 
 
 -- |A type for the result of comparing GADT constructors; the type parameters
--- of the GADT values being compared are included so that in the case where 
+-- of the GADT values being compared are included so that in the case where
 -- they are equal their parameter types can be unified.
 data GOrdering a b where
     GLT :: GOrdering a b
@@ -161,7 +161,7 @@ instance GRead (GOrdering a) where
 
 -- |Type class for comparable GADT-like structures.  When 2 things are equal,
 -- must return a witness that their parameter types are equal as well ('GEQ').
-class GEq f => GCompare f where
+class GEq f => GCompare (f :: k -> *) where
     gcompare :: f a -> f b -> GOrdering a b
 
 instance GCompare ((:=) a) where
